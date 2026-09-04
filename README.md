@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/tests-pytest-0A9EDC)](tests/test_valuation_engine.py)
+[![Tests](https://github.com/Huniiiii/Stock-Valuation-Engine/actions/workflows/tests.yml/badge.svg)](https://github.com/Huniiiii/Stock-Valuation-Engine/actions/workflows/tests.yml)
 
 **EquityLens** is an interactive equity-valuation application that converts public-company financial statements and analyst assumptions into a transparent five-year discounted cash flow model.
 
