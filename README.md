@@ -1,131 +1,85 @@
-# EquityLens — Stock Valuation Engine
+# EquityLens | Stock Valuation Engine
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Open_EquityLens-00B4D8?logo=streamlit&logoColor=white)](https://stock-valuation-engine-aqcw4hp5p9yec952hrpnfi.streamlit.app/)
-[![Tests](https://github.com/Huniiiii/Stock-Valuation-Engine/actions/workflows/tests.yml/badge.svg)](https://github.com/Huniiiii/Stock-Valuation-Engine/actions/workflows/tests.yml)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+A Python and Streamlit application for valuing public companies with a five-year discounted cash flow model. Adjust operating assumptions and the cost of capital, compare the implied share price with the market price, and export the analysis to Excel.
 
-EquityLens turns a public-company ticker and analyst assumptions into an auditable five-year discounted cash flow valuation. It combines financial-statement analysis, WACC construction, scenario testing, and investment communication in one interactive application.
+[Open the app](https://stock-valuation-engine-aqcw4hp5p9yec952hrpnfi.streamlit.app/) · [Model calculations](valuation_engine.py) · [Tests](tests/)
 
-**[Launch the live app →](https://stock-valuation-engine-aqcw4hp5p9yec952hrpnfi.streamlit.app/)**
+![EquityLens valuation dashboard showing the demo company's valuation summary, assumptions, and enterprise-to-equity bridge](assets/equitylens-dashboard.png)
 
-![EquityLens valuation dashboard](assets/equitylens-dashboard-20260904-v3.jpg)
+*The screenshot uses NorthStar Compute, a fictional semiconductor company included in the app. Figures are illustrative.*
 
-## At a glance
+## Using the model
 
-| | What EquityLens provides |
-|---|---|
-| **Inputs** | Live ticker data, a self-contained demo company, or manual financial inputs |
-| **Historical analysis** | Revenue growth, EBITDA margin, and free cash flow |
-| **Valuation model** | CAPM-based WACC, five-year UFCF forecast, and perpetual-growth DCF |
-| **Outputs** | Enterprise value, equity value, implied share price, and upside/downside |
-| **Risk analysis** | 5×5 WACC and terminal-growth sensitivity table |
-| **Deliverable** | Multi-sheet Excel valuation workbook |
+The app opens with a demo company so the model can be explored without downloading market data. Select **Live ticker** to load a company from Yahoo Finance, or use **Manual input** to enter financial inputs.
 
-## Try it in 60 seconds
+1. Review historical revenue, EBITDA margins, and free cash flow.
+2. Set revenue growth, margins, reinvestment assumptions, and WACC inputs in the sidebar.
+3. Review the DCF forecast, valuation bridge, and WACC / terminal-growth sensitivity table.
+4. Download the Excel workbook with the valuation summary, historical financials, forecast, assumptions, and sensitivity results.
 
-1. Open the [live demo](https://stock-valuation-engine-aqcw4hp5p9yec952hrpnfi.streamlit.app/). The fictional demo company loads immediately.
-2. Change revenue growth, EBITDA margin, WACC inputs, or terminal growth in the sidebar.
-3. Review the valuation bridge and sensitivity range, then download the Excel workbook.
+## Valuation approach
 
-For a real company, select **Live ticker** and enter a symbol such as `AAPL`, `MSFT`, or `NVDA`. Live data availability depends on Yahoo Finance.
+Revenue growth and EBITDA margins move linearly between the selected Year 1 and Year 5 assumptions. D&A and capital expenditure are modeled as percentages of revenue. Incremental working capital is a percentage of positive revenue increases; the model does not assume a working-capital release when revenue falls.
 
-## Model workflow
-
-```mermaid
-flowchart TD
-    A["Ticker or manual inputs"] --> B["Normalize financial statements"]
-    B --> C["Historical operating metrics"]
-    C --> D["WACC and five-year UFCF forecast"]
-    D --> E["Terminal value and enterprise value"]
-    E --> F["Equity value and implied share price"]
-    F --> G["Sensitivity table and Excel export"]
-```
-
-### Core formulas
+WACC combines a CAPM-based cost of equity with the after-tax cost of debt, weighted by market capitalization and debt. The model then discounts annual unlevered free cash flow and a perpetual-growth terminal value using year-end discounting.
 
 ```text
-Cost of Equity = Risk-Free Rate + Beta × Equity Risk Premium
+Cost of equity = Risk-free rate + Beta × Equity risk premium
+WACC = Equity weight × Cost of equity
+     + Debt weight × Pre-tax cost of debt × (1 − Tax rate)
 
-WACC = Equity Weight × Cost of Equity
-     + Debt Weight × Pre-Tax Cost of Debt × (1 − Tax Rate)
+Unlevered FCF = EBIT × (1 − Tax rate) + D&A − CapEx − Change in NWC
+Terminal value = Year 5 FCF × (1 + Terminal growth) / (WACC − Terminal growth)
 
-UFCF = EBIT × (1 − Tax Rate) + D&A − CapEx − Change in NWC
-
-Terminal Value = Final-Year UFCF × (1 + g) / (WACC − g)
+Enterprise value = PV of forecast FCF + PV of terminal value
+Equity value = Enterprise value + Cash − Debt
+Implied share price = Equity value / Shares outstanding
 ```
 
-The model discounts forecast UFCF and terminal value to the present, subtracts debt, adds cash, and divides by diluted shares outstanding to calculate implied value per share.
+The 5 × 5 sensitivity table recalculates implied share prices at different WACC and terminal-growth assumptions. Cases where terminal growth is at least as high as WACC are excluded.
 
-## Engineering decisions
+## Data and limitations
 
-- **Separation of concerns:** market-data retrieval, valuation logic, and presentation are isolated in separate modules.
-- **Transparent assumptions:** every major operating and market input is visible and adjustable rather than hidden in code.
-- **Reliable demonstration:** demo and manual modes keep the app usable when third-party data is incomplete or rate-limited.
-- **Model safeguards:** the engine rejects terminal-growth assumptions that are greater than or equal to WACC.
-- **Auditable output:** users can export assumptions, WACC, forecast financials, valuation summary, and sensitivity results to Excel.
-- **Automated verification:** unit tests cover WACC, DCF bridge consistency, sensitivity directionality, validation, and a full Streamlit render smoke test.
+Live mode retrieves annual statements and market data through `yfinance`. It maps available statement fields and estimates some missing values, such as EBITDA from EBIT plus D&A. These inputs still need to be checked against company filings, particularly for one-off items and differences in reporting periods.
 
-## Project structure
+- Valuation depends heavily on the forecast assumptions and terminal value. The sensitivity table shows how the result changes; it is not a statistical confidence interval.
+- Market data may be delayed, incomplete, or temporarily unavailable. Some missing inputs use defaults that should be reviewed before interpreting the result.
+- The live risk-free-rate input uses a US Treasury yield proxy. Currency and rate assumptions need to be consistent when valuing non-US companies.
+- The enterprise-to-equity bridge includes cash and debt but does not separately adjust for minority interests, preferred stock, or other claims.
+- The model is intended for non-financial operating companies. Banks and insurers generally require a different valuation approach.
 
-```text
-Stock-Valuation-Engine/
-├── app.py                       # Streamlit UI, charts, and Excel export
-├── data_provider.py             # Yahoo Finance retrieval and normalization
-├── valuation_engine.py          # WACC, DCF, and sensitivity calculations
-├── tests/
-│   ├── test_valuation_engine.py # Finance-model unit tests
-│   └── test_app_smoke.py        # End-to-end Streamlit render test
-├── .github/workflows/tests.yml  # GitHub Actions CI
-├── .streamlit/config.toml       # Application theme
-├── requirements.txt
-└── requirements-dev.txt
-```
+This is a personal financial-modeling project, not an investment recommendation.
+
+## Code and tests
+
+| File | Purpose |
+| --- | --- |
+| `app.py` | Streamlit interface, charts, and Excel export |
+| `data_provider.py` | Market-data retrieval, statement-field mapping, and demo data |
+| `valuation_engine.py` | WACC, cash-flow forecasts, DCF, and sensitivity calculations |
+| `tests/test_valuation_engine.py` | Calculation, validation, and sensitivity tests |
+| `tests/test_app_smoke.py` | Checks that the default demo page renders without errors |
+
+The calculation functions are separate from the interface and data provider, so they can be tested without downloading live data. GitHub Actions runs the test suite.
 
 ## Run locally
 
 ```bash
 git clone https://github.com/Huniiiii/Stock-Valuation-Engine.git
 cd Stock-Valuation-Engine
-
 python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Run the test suite:
+On Windows, activate the environment with `.venv\Scripts\activate` instead.
+
+To run the tests:
 
 ```bash
 pip install -r requirements-dev.txt
 pytest -q
 ```
 
-## Deployment
-
-The app is deployed on Streamlit Community Cloud from the `main` branch with `app.py` as the main module. No API key or Streamlit secret is required.
-
-For a new deployment:
-
-1. Connect this GitHub repository in [Streamlit Community Cloud](https://share.streamlit.io/).
-2. Select branch `main` and main file `app.py`.
-3. Deploy; dependencies are installed from `requirements.txt`.
-
-## Interview discussion points
-
-- Why a valuation range is more decision-useful than a single precise price target
-- How changes in WACC and terminal growth affect enterprise value
-- Why statement normalization and third-party data quality are practical modeling risks
-- Why traditional unlevered DCF is less suitable for banks and insurers
-- How modular design and automated tests make financial models easier to audit
-
-## Limitations
-
-- Third-party market data can be delayed, incomplete, or classified differently from company filings.
-- Forecasts use simplified analyst assumptions and do not replace a full investment thesis or source-filing review.
-- A traditional unlevered DCF is generally less appropriate for financial institutions because debt is part of operations.
-- This project is for education and portfolio demonstration, not investment advice.
-
-## Security
-
-The project requires no API key. `.env` files and `.streamlit/secrets.toml` are ignored to prevent accidental credential commits.
+The hosted app runs on Streamlit Community Cloud using `app.py`. No API key is required.
